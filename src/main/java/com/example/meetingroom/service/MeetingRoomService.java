@@ -31,7 +31,52 @@ public class MeetingRoomService {
     // ════════════════════════════════════════════════
 
     /**
-     * 建立預約。
+     * 4.1 作業要求方法簽名：reserveRoom
+     *
+     * 確保同一個會議室在同一時間段內不能被重複預約。
+     * 使用悲觀寫鎖防止並發競態條件。
+     */
+    @Transactional
+    public Reservation reserveRoom(Long roomId, Long userId,
+                                   LocalDateTime start, LocalDateTime end) {
+        Room room = roomRepository.findByIdForUpdate(roomId)
+                .orElseThrow(() -> new RuntimeException("找不到會議室 ID: " + roomId));
+
+        if (!room.getActive()) {
+            throw new IllegalArgumentException("會議室 [" + room.getName() + "] 已停用，無法預約");
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("找不到使用者 ID: " + userId));
+
+        if (!end.isAfter(start)) {
+            throw new IllegalArgumentException("結束時間必須晚於開始時間");
+        }
+
+        // 注意：需檢查該時段會議室是否已被預約
+        List<Reservation> conflicts = reservationRepository
+                .findConflictingReservations(roomId, start, end);
+        if (!conflicts.isEmpty()) {
+            throw new RuntimeException(
+                String.format("會議室 [%s] 在 %s ~ %s 時段已有預約，無法重複預約",
+                    room.getName(), start, end)
+            );
+        }
+
+        Reservation reservation = new Reservation();
+        reservation.setRoom(room);
+        reservation.setUser(user);
+        reservation.setStartTime(start);
+        reservation.setEndTime(end);
+        reservation.setStatus(ReservationStatus.APPROVED);
+
+        Reservation saved = reservationRepository.save(reservation);
+        saved.setReservationNo(String.format("MTGRES%05d", saved.getId()));
+        return reservationRepository.save(saved);
+    }
+
+    /**
+     * 建立預約（完整 DTO 版本，由 REST Controller 呼叫）。
      *
      * 使用悲觀寫鎖（FOR UPDATE）鎖住 Room 列，確保同一間會議室
      * 的並發預約只有一筆能通過衝突檢查，防止 Race Condition。
