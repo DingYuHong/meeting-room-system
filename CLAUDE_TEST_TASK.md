@@ -35,9 +35,9 @@
 | 4.1 | `RESERVE_NO_TOKEN` | 沒帶 JWT → 401 |
 | 4.2 | `RETURN_REQUEST` | 使用者申請退回 → status = PROCESSING |
 | 4.2 | `REVIEW_BY_USER_FORBIDDEN` | 一般使用者打 /review → 403 |
-| 4.2 | `REVIEW_APPROVE` | 審核者通過 → status = REJECTED 或 APPROVED |
+| 4.2 | `REVIEW_APPROVE` | 審核者通過 → status = RETURN_APPROVED 或 RETURN_REJECTED |
 | 4.3 | `DAILY_LIST` | 回傳 array、依 startTime 升冪、只包含 APPROVED |
-| 4.4 | `MONTHLY_GROUPED` | 回傳分成 PROCESSING / APPROVED / REJECTED 三組 |
+| 4.4 | `MONTHLY_GROUPED` | 回傳分成 APPROVED / PROCESSING / RETURN_APPROVED / RETURN_REJECTED 四組 |
 
 ---
 

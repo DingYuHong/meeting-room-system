@@ -64,7 +64,7 @@ docker-compose up --build
 | reviewer_id | BIGINT FK → users | 審核者（nullable）|
 | start_time | TIMESTAMP | 開始時間 |
 | end_time | TIMESTAMP | 結束時間 |
-| status | VARCHAR(20) | `APPROVED` / `PROCESSING` / `REJECTED` |
+| status | VARCHAR(20) | `APPROVED` / `PROCESSING` / `RETURN_APPROVED` / `RETURN_REJECTED` |
 | meeting_title | VARCHAR(200) | 會議主旨 |
 | attendees | INTEGER | 使用人數 |
 | return_reason | VARCHAR(500) | 退回原因 |
@@ -151,7 +151,7 @@ Response 401: 未帶 Token
 ```json
 { "reservationId": 13, "approved": true, "remark": "同意退回" }
 ```
-- `approved: true`  → **REJECTED**（同意退回，預約取消）
+- `approved: true`  → **RETURN_APPROVED**（同意退回，預約取消）
 - `approved: false` → **APPROVED**（拒絕退回，預約繼續）
 
 Response 403：一般使用者 Token 嘗試呼叫此端點
@@ -178,14 +178,15 @@ Response:
 
 **GET /api/reservations/monthly?year=2026&month=1**
 
-依 Status 找出每個月會議室預約狀況（rejected、approved、processing）。
+依 Status 找出每個月會議室預約狀況（approved、processing、return_approved、return_rejected）。
 
 ```json
 Response:
 {
-  "APPROVED":   [ { "reservationNo": "MTGRES0090", ... }, ... ],
-  "PROCESSING": [ { "reservationNo": "MTGRES0088", ... } ],
-  "REJECTED":   [ { "reservationNo": "MTGRES0089", ... } ]
+  "APPROVED":        [ { "reservationNo": "MTGRES0090", ... }, ... ],
+  "PROCESSING":      [ { "reservationNo": "MTGRES0088", ... } ],
+  "RETURN_APPROVED": [ { "reservationNo": "MTGRES0089", ... } ],
+  "RETURN_REJECTED": [ { "reservationNo": "MTGRES0100", ... } ]
 }
 ```
 
@@ -229,7 +230,7 @@ src/main/java/com/example/meetingroom/
 │   ├── User.java                     # 使用者 ORM
 │   └── Reservation.java              # 預約記錄（含 FK）
 ├── enums/
-│   └── ReservationStatus.java        # PROCESSING / APPROVED / REJECTED
+│   └── ReservationStatus.java        # APPROVED / PROCESSING / RETURN_APPROVED / RETURN_REJECTED
 ├── exception/
 │   └── GlobalExceptionHandler.java   # 統一 400 錯誤格式
 ├── repository/
@@ -320,35 +321,3 @@ docker run --rm -v "$(pwd):/app" -w //app \
 - 19 個 `@Test` 方法，對應 `functional-test.sh` 的 19 個 assert 計數
 - 以 `@Order(N)` 保證執行順序，避免資料相依問題
 - `DataInitializer` 會在測試啟動時自動塞入 seed 資料；`application-test.properties` 設定 `ddl-auto=create-drop` 保持測試隔離
-
-## 設計說明
-
-### Status State Machine
-
-```
-新預約
-  └─→ APPROVED （預約有效）
-
-APPROVED ─使用者申請退回─→ PROCESSING （退回審核中）
-                              │
-                              ├─審核者同意取消──→ RETURN_APPROVED （預約已取消）
-                              │
-                              └─審核者駁回退回──→ RETURN_REJECTED （預約維持，保留 audit）
-```
-
-### 設計決策
-
-- **不存在「衝突被拒」的 status**：時段衝突直接拋 exception 回 HTTP 400，
-  失敗請求不會寫入 reservation 表，因此不需要對應的 status。
-- **拋棄 PDF 字面要求的 `REJECTED`**：原本的 REJECTED 與 APPROVED 在語意上
-  容易一字多義（APPROVED 同時代表「新預約有效」和「退回被駁回」），
-  改用 `RETURN_APPROVED` / `RETURN_REJECTED` 前綴明確標示退回流程的結果。
-- **PDF 要求的 `PROCESSING` 保留**：語意聚焦在「退回審核中」這一個情境。
-- **`RETURN_REJECTED` 是獨立終態**：駁回退回後不回到 APPROVED，
-  保留 audit trail，可追蹤「這預約曾被申請退回但被駁回」。
-
-### 已知限制
-
-- JUnit 整合測試（`ReservationIntegrationTest.java`）對應的 status 斷言為舊版三狀態，
-  與目前 enum 不一致，需在 JDK 17 環境下更新後驗證。
-- functional-test.sh 已驗證新狀態運作正常（20/20 PASS，見 `test-result-final-v2.txt`）。
