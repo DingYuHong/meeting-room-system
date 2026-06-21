@@ -20,7 +20,7 @@ import java.time.LocalDateTime;
  *   reviewer      - 審核者（Foreign Key → users.id，可為 null）
  *   startTime     - 開始時間
  *   endTime       - 結束時間
- *   status        - 狀態：PROCESSING / APPROVED / REJECTED
+ *   status        - 狀態：APPROVED / PROCESSING / RETURN_APPROVED / RETURN_REJECTED
  *   meetingTitle  - 會議主旨
  *   attendees     - 使用人數
  *   returnReason  - 退回原因（退回時填寫）

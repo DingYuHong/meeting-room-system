@@ -262,6 +262,34 @@ chmod +x functional-test.sh
 
 > **需求**：Docker、`curl`、`bash`
 
+## 設計說明
+
+### Status State Machine
+
+新預約
+
+└─→ APPROVED （預約有效）
+APPROVED ─使用者申請退回─→ PROCESSING （退回審核中）
+
+│
+
+├─審核者同意取消──→ RETURN_APPROVED （預約已取消）
+
+│
+
+└─審核者駁回退回──→ RETURN_REJECTED （預約維持，保留 audit）
+
+### 設計決策
+
+- **不存在「衝突被拒」的 status**：時段衝突直接拋 exception 回 HTTP 400，
+  失敗請求不會寫入 reservation 表，因此不需要對應的 status。
+- **拋棄 PDF 字面要求的 `REJECTED`**：原本的 REJECTED 與 APPROVED 在語意上
+  容易一字多義（APPROVED 同時代表「新預約有效」和「退回被駁回」），
+  改用 `RETURN_APPROVED` / `RETURN_REJECTED` 前綴明確標示退回流程的結果。
+- **PDF 要求的 `PROCESSING` 保留**：但語意聚焦在「退回審核中」這一個情境。
+- **`RETURN_REJECTED` 是獨立終態**：駁回退回後不回到 APPROVED，
+  保留 audit trail，可追蹤「這預約曾被申請退回但被駁回」。
+
 ---
 
 ### Integration Test
@@ -292,3 +320,35 @@ docker run --rm -v "$(pwd):/app" -w //app \
 - 19 個 `@Test` 方法，對應 `functional-test.sh` 的 19 個 assert 計數
 - 以 `@Order(N)` 保證執行順序，避免資料相依問題
 - `DataInitializer` 會在測試啟動時自動塞入 seed 資料；`application-test.properties` 設定 `ddl-auto=create-drop` 保持測試隔離
+
+## 設計說明
+
+### Status State Machine
+
+```
+新預約
+  └─→ APPROVED （預約有效）
+
+APPROVED ─使用者申請退回─→ PROCESSING （退回審核中）
+                              │
+                              ├─審核者同意取消──→ RETURN_APPROVED （預約已取消）
+                              │
+                              └─審核者駁回退回──→ RETURN_REJECTED （預約維持，保留 audit）
+```
+
+### 設計決策
+
+- **不存在「衝突被拒」的 status**：時段衝突直接拋 exception 回 HTTP 400，
+  失敗請求不會寫入 reservation 表，因此不需要對應的 status。
+- **拋棄 PDF 字面要求的 `REJECTED`**：原本的 REJECTED 與 APPROVED 在語意上
+  容易一字多義（APPROVED 同時代表「新預約有效」和「退回被駁回」），
+  改用 `RETURN_APPROVED` / `RETURN_REJECTED` 前綴明確標示退回流程的結果。
+- **PDF 要求的 `PROCESSING` 保留**：語意聚焦在「退回審核中」這一個情境。
+- **`RETURN_REJECTED` 是獨立終態**：駁回退回後不回到 APPROVED，
+  保留 audit trail，可追蹤「這預約曾被申請退回但被駁回」。
+
+### 已知限制
+
+- JUnit 整合測試（`ReservationIntegrationTest.java`）對應的 status 斷言為舊版三狀態，
+  與目前 enum 不一致，需在 JDK 17 環境下更新後驗證。
+- functional-test.sh 已驗證新狀態運作正常（20/20 PASS，見 `test-result-final-v2.txt`）。

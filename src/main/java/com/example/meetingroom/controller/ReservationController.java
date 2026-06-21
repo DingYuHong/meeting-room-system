@@ -107,7 +107,7 @@ public class ReservationController {
     // ─────────────────────────────────────────────
     // 4.4 查詢每月各狀態預約狀況
     // GET /api/reservations/monthly?year=2026&month=1
-    // 回傳：{ "APPROVED": [...], "REJECTED": [...], "PROCESSING": [...] }
+    // 回傳：{ "APPROVED": [...], "PROCESSING": [...], "RETURN_APPROVED": [...], "RETURN_REJECTED": [...] }
     // ─────────────────────────────────────────────
     @GetMapping("/monthly")
     public ResponseEntity<?> getMonthlyStatus(

@@ -128,15 +128,18 @@ public class DataInitializer implements CommandLineRunner {
             createReservation("MTGRES0099", room0304, user1,
                 "2026-01-20T16:00", "2026-01-20T17:00", ReservationStatus.APPROVED, "客戶訪談", 5),
 
-            // PROCESSING 狀態（待審核）
+            // PROCESSING 狀態（退回審核中）
             createReservationWithReturn("MTGRES0088", room0323, user2,
                 "2026-01-20T10:00", "2026-01-20T12:00",
                 ReservationStatus.PROCESSING, reviewer, "管理者福請", 8),
-
-            // REJECTED 狀態（已退回）
+            // RETURN_APPROVED 狀態（同意退回 → 預約已取消）
             createReservationWithReturn("MTGRES0089", room0323, user3,
                 "2026-01-20T13:00", "2026-01-20T14:00",
-                ReservationStatus.REJECTED, reviewer, "時段重複申請", 6)
+                ReservationStatus.RETURN_APPROVED, reviewer, "時段重複申請", 6),
+            // RETURN_REJECTED 狀態（駁回退回 → 預約維持，保留 audit）
+            createReservationWithReturn("MTGRES0100", room0323, user2,
+                "2026-01-20T15:00", "2026-01-20T16:00",
+                ReservationStatus.RETURN_REJECTED, reviewer, "退回理由不充分", 4)
         );
 
         reservationRepository.saveAll(reservations);

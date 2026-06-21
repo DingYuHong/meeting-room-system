@@ -294,7 +294,7 @@ else
   if [[ -n "$ADMIN_TOKEN" ]]; then
     S=$(call_api POST "/api/reservations/review" "$REVIEW_PAYLOAD" "$ADMIN_TOKEN")
     assert_in "REVIEW_APPROVE" "$S" "200" "201"
-    assert_body_contains "REVIEW_STATUS_FINAL" "REJECTED\|APPROVED\|rejected\|approved"
+    assert_body_contains "REVIEW_STATUS_FINAL" "RETURN_APPROVED\|RETURN_REJECTED\|return_approved\|return_rejected"
   else
     echo -e "  ${YELLOW}- SKIP${NC} | REVIEW_APPROVE (沒有 admin token)"
     ((SKIP++))
@@ -350,13 +350,14 @@ PYEOF
 # ============================================================
 # 4.4 月份分組統計
 # ============================================================
-section "4.4 · 月份預約分組 (PROCESSING / APPROVED / REJECTED)"
+section "4.4 · 月份預約分組 (APPROVED / PROCESSING / RETURN_APPROVED / RETURN_REJECTED)"
 
 S=$(call_api GET "/api/reservations/monthly?year=$MONTHLY_YEAR&month=$MONTHLY_MONTH" "" "$USER_TOKEN")
 assert_in "MONTHLY_HTTP" "$S" "200"
 assert_body_contains "MONTHLY_HAS_APPROVED"   "APPROVED\|approved"
 assert_body_contains "MONTHLY_HAS_PROCESSING" "PROCESSING\|processing"
-assert_body_contains "MONTHLY_HAS_REJECTED"   "REJECTED\|rejected"
+assert_body_contains "MONTHLY_HAS_RETURN_APPROVED" "RETURN_APPROVED\|return_approved"
+assert_body_contains "MONTHLY_HAS_RETURN_REJECTED" "RETURN_REJECTED\|return_rejected"
 
 # ============================================================
 # Summary
