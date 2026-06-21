@@ -242,3 +242,53 @@ src/main/java/com/example/meetingroom/
     ├── MeetingRoomService.java       # 核心邏輯（4.1 reserveRoom ~ 4.4）
     └── DataInitializer.java          # 啟動塞假資料
 ```
+
+---
+
+## Testing
+
+### End-to-End Test
+
+執行完整的 curl-based 功能測試，需要先透過 Docker Compose 啟動服務：
+
+```bash
+# 1. 啟動服務
+docker-compose up -d --build
+
+# 2. 等待 app 就緒後執行測試腳本（共 19 個 assert）
+chmod +x functional-test.sh
+./functional-test.sh
+```
+
+> **需求**：Docker、`curl`、`bash`
+
+---
+
+### Integration Test
+
+使用 JUnit 5 + Testcontainers 執行整合測試，**不需要** 預先啟動任何外部服務，
+Testcontainers 會在測試執行時自動啟動一個臨時 PostgreSQL 容器。
+
+> **前置需求（缺一不可）**
+> - **JDK 17**（本機需安裝，並設好 `JAVA_HOME`）
+> - **Docker Desktop**（Testcontainers 用來拉取並啟動 `postgres:15-alpine`）
+>
+> 目前本機若尚未安裝 JDK 17，Phase D 測試待環境齊備後再執行。
+
+```bash
+./mvnw test
+```
+
+`mvnw` / `mvnw.cmd` / `.mvn/` 已由以下指令預先生成，無需再執行：
+
+```bash
+docker run --rm -v "$(pwd):/app" -w //app \
+  maven:3.9-eclipse-temurin-17 \
+  mvn -N io.takari:maven:wrapper -Dmaven=3.9.6
+```
+
+測試類別：`src/test/java/com/example/meetingroom/ReservationIntegrationTest.java`
+
+- 19 個 `@Test` 方法，對應 `functional-test.sh` 的 19 個 assert 計數
+- 以 `@Order(N)` 保證執行順序，避免資料相依問題
+- `DataInitializer` 會在測試啟動時自動塞入 seed 資料；`application-test.properties` 設定 `ddl-auto=create-drop` 保持測試隔離
